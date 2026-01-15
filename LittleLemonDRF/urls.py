@@ -1,5 +1,5 @@
 from rest_framework.routers import DefaultRouter 
-from .views import CartView, GroupDeliveryCrewUsersView, GroupManagerUsersView, MenuItemViewSet, OrderView
+from .views import CartView, GroupDeliveryCrewUsersView, GroupManagerUsersView, MenuItemViewSet, OrderDetailView, OrderView
 from django.urls import path
 
 router = DefaultRouter(trailing_slash=False)
@@ -12,5 +12,5 @@ urlpatterns = [
     path('groups/delivery-crew/users/<int:user_id>', GroupDeliveryCrewUsersView.as_view()),
     path('cart/menu-items', CartView.as_view()),
     path('orders', OrderView.as_view()),
-    # path('orders/<int:order_id>', OrderView.as_view()),
+    path('orders/<int:order_id>', OrderDetailView.as_view()),
 ] + router.urls

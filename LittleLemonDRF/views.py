@@ -184,3 +184,83 @@ class OrderView(APIView):
         # Return the created order with order items
         serializer = self.serializer_class(order)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    
+class OrderDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = OrderSerializer
+    
+    def get(self, request, order_id):
+        user = request.user
+        
+        # Only customers can view individual orders
+        if not IsCustomer().has_permission(request, self):
+            return Response({'detail': 'Only customers can view orders.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            order = Order.objects.get(id=order_id, user=user)
+        except Order.DoesNotExist:
+            return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = self.serializer_class(order)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    
+    def patch(self, request, order_id):
+        user = request.user
+        
+        
+        try:
+            order = Order.objects.get(id=order_id)
+        except Order.DoesNotExist:
+            return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Assign delivery crew and/or update status
+        if IsManager().has_permission(request, self):
+            delivery_crew_id = request.data.get('delivery_crew_id') 
+            if not delivery_crew_id:
+                return Response({'detail': 'Delivery crew ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            status_value = request.data.get('status', 0)
+            
+            try:
+                delivery_crew = User.objects.get(id=delivery_crew_id)
+                return Response({ delivery_crew }, status=status.HTTP_200_OK)
+                if not IsDeliveryCrew().has_permission(request, self):
+                    return Response({'detail': 'Assigned user is not in Delivery Crew.'}, status=status.HTTP_400_BAD_REQUEST)
+                order.delivery_crew = delivery_crew
+                if status_value is not None:
+                    order.status = status_value
+                order.save()
+                serializer = self.serializer_class(order)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except User.DoesNotExist:
+                return Response({'detail': 'Delivery crew user not found.'}, status=status.HTTP_404_NOT_FOUND)
+        elif IsDeliveryCrew().has_permission(request, self):
+            if order.delivery_crew != user:
+                return Response({'detail': 'You are not assigned to this order.'}, status=status.HTTP_403_FORBIDDEN)
+            status_value = request.data.get('status', None)
+            if status_value is not None:
+                order.status = status_value
+                order.save()
+                serializer = self.serializer_class(order)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                return Response({'detail': 'Status value is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({'detail': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+    
+    
+    def delete(self, request, order_id):
+        user = request.user
+        
+        # Only managers can delete orders
+        if not IsManager().has_permission(request, self):
+            return Response({'detail': 'Only managers can delete orders.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            order = Order.objects.get(id=order_id)
+        except Order.DoesNotExist:
+            return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        order.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
