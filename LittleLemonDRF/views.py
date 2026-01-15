@@ -56,3 +56,35 @@ class GroupManagerUsersView(APIView):
         group = Group.objects.get(name=self.group_name)
         group.user_set.remove(user)
         return Response(status=status.HTTP_200_OK)
+    
+    
+class GroupDeliveryCrewUsersView(APIView):
+    permission_classes = [IsManager]
+    group_name = 'Delivery Crew'
+    
+    def _serialize_user(self, user):
+        return {'id': user.id, 'username': user.username, 'email': user.email or ''}
+
+
+    def get(self, request):
+        group = Group.objects.filter(name=self.group_name).first()
+        users = group.user_set.all() if group else []
+        return Response([self._serialize_user(u) for u in users], status=status.HTTP_200_OK)
+
+    def post(self, request):
+        user = User.objects.filter(id=request.data.get('user_id')).first()
+        if not user:
+            return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        group = Group.objects.get(name=self.group_name)
+        group.user_set.add(user)
+        return Response(self._serialize_user(user), status=status.HTTP_201_CREATED)
+    
+    def delete(self, request, user_id):
+        user = User.objects.filter(id=user_id).first()
+        if not user:
+            return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        group = Group.objects.get(name=self.group_name)
+        group.user_set.remove(user)
+        return Response(status=status.HTTP_200_OK)
