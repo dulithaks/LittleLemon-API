@@ -217,23 +217,26 @@ class OrderDetailView(APIView):
         
         # Assign delivery crew and/or update status
         if IsManager().has_permission(request, self):
-            delivery_crew_id = request.data.get('delivery_crew_id') 
-            if not delivery_crew_id:
-                return Response({'detail': 'Delivery crew ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
-            status_value = request.data.get('status', 0)
+            delivery_crew_id = request.data.get('delivery_crew_id')
+            status_value = request.data.get('status')
             
-            try:
-                delivery_crew = User.objects.get(id=delivery_crew_id)
-                if not delivery_crew.groups.filter(name='Delivery Crew').exists():
-                    return Response({'detail': 'Assigned user is not in Delivery Crew.'}, status=status.HTTP_400_BAD_REQUEST)
-                order.delivery_crew = delivery_crew
-                if status_value is not None:
-                    order.status = status_value
-                order.save()
-                serializer = self.serializer_class(order)
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            except User.DoesNotExist:
-                return Response({'detail': 'Delivery crew user not found.'}, status=status.HTTP_404_NOT_FOUND)
+            # Update delivery crew if provided
+            if delivery_crew_id:
+                try:
+                    delivery_crew = User.objects.get(id=delivery_crew_id)
+                    if not delivery_crew.groups.filter(name='Delivery Crew').exists():
+                        return Response({'detail': 'Assigned user is not in Delivery Crew.'}, status=status.HTTP_400_BAD_REQUEST)
+                    order.delivery_crew = delivery_crew
+                except User.DoesNotExist:
+                    return Response({'detail': 'Delivery crew user not found.'}, status=status.HTTP_404_NOT_FOUND)
+            
+            # Update status if provided
+            if status_value is not None:
+                order.status = status_value
+            
+            order.save()
+            serializer = self.serializer_class(order)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         elif IsDeliveryCrew().has_permission(request, self):
             if order.delivery_crew != user:
                 return Response({'detail': 'You are not assigned to this order.'}, status=status.HTTP_403_FORBIDDEN)
