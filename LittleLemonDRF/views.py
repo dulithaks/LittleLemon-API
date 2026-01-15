@@ -3,7 +3,7 @@ from django.shortcuts import render
 # Create your views here.
 # restaurant/views.py
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from .permissions import IsManager, IsDeliveryCrew
+from .permissions import IsCustomer, IsManager, IsDeliveryCrew
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from .models import Cart, MenuItem
@@ -90,7 +90,7 @@ class GroupDeliveryCrewUsersView(APIView):
         return Response(status=status.HTTP_200_OK)
     
 class CartView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsCustomer]
     serializer_class = CartSerializer
 
     def get(self, request):
