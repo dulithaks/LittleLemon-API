@@ -143,4 +143,44 @@ class OrderView(APIView):
             return Response({'detail': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
         
         return Response(self.serializer_class(orders, many=True).data, status=status.HTTP_200_OK)
-            
+    
+    def post(self, request):
+        user = request.user
+        if not IsCustomer().has_permission(request, self):
+            return Response({'detail': 'Only customers can place orders.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get cart items for the user
+        cart_items = Cart.objects.filter(user=user)
+        
+        if not cart_items.exists():
+            return Response({'detail': 'Cart is empty.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Calculate total from cart items
+        total = sum(item.price for item in cart_items)
+        
+        # Create the order
+        from datetime import date
+        order = Order.objects.create(
+            user=user,
+            total=total,
+            date=date.today(),
+            status=False
+        )
+        
+        # Create order items from cart items
+        from .models import OrderItem
+        for cart_item in cart_items:
+            OrderItem.objects.create(
+                order=order,
+                menuitem=cart_item.menuitem,
+                quantity=cart_item.quantity,
+                unit_price=cart_item.unit_price,
+                price=cart_item.price
+            )
+        
+        # Delete all cart items for this user
+        cart_items.delete()
+        
+        # Return the created order with order items
+        serializer = self.serializer_class(order)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
