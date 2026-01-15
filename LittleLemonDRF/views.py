@@ -224,8 +224,7 @@ class OrderDetailView(APIView):
             
             try:
                 delivery_crew = User.objects.get(id=delivery_crew_id)
-                return Response({ delivery_crew }, status=status.HTTP_200_OK)
-                if not IsDeliveryCrew().has_permission(request, self):
+                if not delivery_crew.groups.filter(name='Delivery Crew').exists():
                     return Response({'detail': 'Assigned user is not in Delivery Crew.'}, status=status.HTTP_400_BAD_REQUEST)
                 order.delivery_crew = delivery_crew
                 if status_value is not None:
