@@ -6,8 +6,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from .permissions import IsManager, IsDeliveryCrew
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
-from .models import MenuItem
-from .serializers import MenuItemSerializer
+from .models import Cart, MenuItem
+from .serializers import CartSerializer, MenuItemSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -88,3 +88,40 @@ class GroupDeliveryCrewUsersView(APIView):
         group = Group.objects.get(name=self.group_name)
         group.user_set.remove(user)
         return Response(status=status.HTTP_200_OK)
+    
+class CartView(APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = CartSerializer
+
+    def get(self, request):
+        user = request.user
+        menu_items = Cart.objects.filter(user=user)
+        serializer = self.serializer_class(menu_items, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        serializer = CartSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else: 
+            data = serializer.validated_data
+            user = request.user
+            menuitem = data.get('menuitem')
+            quantity = data.get('quantity')
+
+        cart_item, created = Cart.objects.update_or_create(
+            user=user,
+            menuitem=menuitem,
+            defaults={
+                "quantity": quantity,
+                "unit_price": menuitem.price,
+                "price": menuitem.price * quantity,
+            }
+        )
+        serializer = self.serializer_class(cart_item)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def delete(self, request):
+        # Logic to remove an item from the cart for the authenticated user
+        pass
