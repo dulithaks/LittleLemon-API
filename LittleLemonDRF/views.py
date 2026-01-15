@@ -123,5 +123,6 @@ class CartView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def delete(self, request):
-        # Logic to remove an item from the cart for the authenticated user
-        pass
+        user = request.user
+        Cart.objects.filter(user=user).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
