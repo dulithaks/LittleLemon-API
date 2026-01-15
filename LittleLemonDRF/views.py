@@ -13,13 +13,26 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from rest_framework.filters import OrderingFilter, SearchFilter
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.pagination import PageNumberPagination
 
 User = get_user_model()
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 class MenuItemViewSet(ModelViewSet):
     queryset = MenuItem.objects.all()
     serializer_class = MenuItemSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    filterset_fields = ['category', 'featured', 'price']
+    ordering_fields = ['price', 'title', 'featured']
+    search_fields = ['title', 'category__title']
+    pagination_class = StandardResultsSetPagination
 
     def get_permissions(self):
         if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
@@ -130,6 +143,7 @@ class CartView(APIView):
 class OrderView(APIView):
     permission_classes = [IsAuthenticated]
     serializer_class = OrderSerializer
+    pagination_class = StandardResultsSetPagination
     
     def get(self, request):
         user = request.user
@@ -141,6 +155,30 @@ class OrderView(APIView):
             orders = Order.objects.all()
         else:
             return Response({'detail': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Apply filtering
+        status_filter = request.query_params.get('status')
+        if status_filter is not None:
+            orders = orders.filter(status=status_filter.lower() in ['true', '1'])
+        
+        date_filter = request.query_params.get('date')
+        if date_filter:
+            orders = orders.filter(date=date_filter)
+        
+        # Apply ordering
+        ordering = request.query_params.get('ordering', '-date')
+        valid_orderings = ['date', '-date', 'total', '-total', 'status', '-status']
+        if ordering in valid_orderings:
+            orders = orders.order_by(ordering)
+        else:
+            orders = orders.order_by('-date')
+        
+        # Apply pagination
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(orders, request)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
         
         return Response(self.serializer_class(orders, many=True).data, status=status.HTTP_200_OK)
     

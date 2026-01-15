@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'LittleLemonDRF',
     'rest_framework',
     'rest_framework.authtoken',
-    
+    'django_filters',
     'djoser',
 ]
 
