@@ -1,6 +1,6 @@
 # restaurant/serializers.py
 from rest_framework import serializers
-from .models import Cart, MenuItem
+from .models import Cart, MenuItem, Order, OrderItem
 
 class MenuItemSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,3 +15,13 @@ class CartSerializer(serializers.ModelSerializer):
         model = Cart
         fields = '__all__'
         read_only_fields = ('user', 'unit_price', 'price')
+        
+class OrderItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderItem
+        fields = '__all__'
+        
+class OrderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = '__all__'

@@ -6,8 +6,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from .permissions import IsCustomer, IsManager, IsDeliveryCrew
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
-from .models import Cart, MenuItem
-from .serializers import CartSerializer, MenuItemSerializer
+from .models import Cart, MenuItem, Order
+from .serializers import CartSerializer, MenuItemSerializer, OrderSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -126,3 +126,21 @@ class CartView(APIView):
         user = request.user
         Cart.objects.filter(user=user).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+class OrderView(APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = OrderSerializer
+    
+    def get(self, request):
+        user = request.user
+        if IsCustomer().has_permission(request, self):
+            orders = Order.objects.filter(user=user)
+        elif IsDeliveryCrew().has_permission(request, self):
+            orders = Order.objects.filter(delivery_crew=user)
+        elif IsManager().has_permission(request, self):
+            orders = Order.objects.all()
+        else:
+            return Response({'detail': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        
+        return Response(self.serializer_class(orders, many=True).data, status=status.HTTP_200_OK)
+            
